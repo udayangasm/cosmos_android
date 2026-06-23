@@ -1,0 +1,30 @@
+# Android / Gradle
+*.iml
+.gradle/
+/local.properties
+local.properties
+.DS_Store
+build/
+/captures
+.externalNativeBuild
+.cxx
+.kotlin/
+
+# IDE
+.idea/
+
+# Build outputs / artifacts
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Keystores / secrets (do not commit signing material)
+*.jks
+*.keystore
+
+# Claude / tooling scratch
+.claude/
+tmpclaude-*
+nul
