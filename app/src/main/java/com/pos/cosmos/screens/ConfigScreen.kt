@@ -130,6 +130,8 @@ private val CONFIG_CATEGORIES: List<Pair<String, List<Pair<String, String>>>> = 
         "showPaymentOptionsInOrderForm" to "Show Payment Options in Order Form",
         "printOrderWhenCreating" to "Print Order When Creating",
         "showMemoInOrderFormAndCreditBill" to "Show Memo in Order Form and Credit Bill",
+        "enableReturnItemsWithOrders" to "Enable return items along with orders",
+        "showReturnsSeparatelyInBills" to "Show returns separately in bills",
     ),
     "SMS & WhatsApp Settings" to listOf(
         "sendSmsWhenBilling" to "Send SMS when billing",

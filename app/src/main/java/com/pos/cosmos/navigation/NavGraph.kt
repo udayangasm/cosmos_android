@@ -33,8 +33,6 @@ sealed class Screen(val route: String) {
     object KOT : Screen("kot")
     object AllKOTs : Screen("all_kots")
     object ImageBill : Screen("image_bill")
-    object CustomerReturns : Screen("customer_returns")
-    object ItemReturns : Screen("item_returns")
     object Config : Screen("config")
     object SyncData : Screen("sync_data")
     object Settings : Screen("settings")
@@ -142,12 +140,6 @@ fun NavGraph(
         }
         composable(Screen.ImageBill.route) {
             ImageBillScreen(navController = navController, appViewModel = appViewModel)
-        }
-        composable(Screen.CustomerReturns.route) {
-            CustomerReturnsScreen(navController = navController, appViewModel = appViewModel)
-        }
-        composable(Screen.ItemReturns.route) {
-            ItemReturnsScreen(navController = navController, appViewModel = appViewModel)
         }
         composable(Screen.Config.route) {
             ConfigScreen(navController = navController, appViewModel = appViewModel)

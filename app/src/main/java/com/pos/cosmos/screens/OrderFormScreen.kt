@@ -84,7 +84,10 @@ data class OrderItem(
     val unitCost: Double = 0.0,
     val freeIssueQty: Double = 0.0,
     val isPromoFreeItem: Boolean = false,
-    val promotionId: Int = 0
+    val promotionId: Int = 0,
+    val isReturnItem: Boolean = false,
+    val returnType: String = "DAMAGE",
+    val returnQty: Double = 0.0
 ) {
     val totalPrice: Double
         get() = qty * (unitPrice - discountValue)
@@ -229,6 +232,8 @@ fun OrderFormScreenFull(
 
     // State variables
     var orderItems by remember { mutableStateOf<List<OrderItem>>(cachedDraft.items) }
+    // Return items added in the order form (sent to damages / restocked), shown separately
+    var returnOrderItems by remember { mutableStateOf<List<OrderItem>>(emptyList()) }
     var availableItems by remember { mutableStateOf<List<OrderBillItem>>(emptyList()) }
     var filteredItems by remember { mutableStateOf<List<OrderBillItem>>(emptyList()) }
     var customers by remember { mutableStateOf<List<CustomerOption>>(emptyList()) }
@@ -270,6 +275,7 @@ fun OrderFormScreenFull(
     var dialogPrice by remember { mutableStateOf("") }
     var dialogDiscount by remember { mutableStateOf("0") }
     var dialogFreeIssue by remember { mutableStateOf("0") }
+    var dialogReturnType by remember { mutableStateOf("DAMAGE") }
     var selectedSupplier by remember { mutableStateOf<BillSupplier?>(null) }
     var selectedInvoice by remember { mutableStateOf<BillInvoice?>(null) }
 
@@ -292,6 +298,10 @@ fun OrderFormScreenFull(
     var showMemoInOrderFormAndCreditBill by remember { mutableStateOf("") }
     // Config for showing delivery date in order form
     var showDeliveryDateInOrderForm by remember { mutableStateOf("") }
+    // Config: enable adding return items along with orders
+    var enableReturnItemsWithOrders by remember { mutableStateOf("") }
+    // Config: show returns separately in bills
+    var showReturnsSeparatelyInBills by remember { mutableStateOf("") }
     // Selected delivery date as epoch millis (null = not set)
     var deliveryDateMillis by remember { mutableStateOf<Long?>(cachedDraft.deliveryDate) }
     // Config for promotion offers (pop-up in Order Form & Credit Bill)
@@ -333,10 +343,11 @@ fun OrderFormScreenFull(
 
     // Calculate totals
     val grossTotal = orderItems.sumOf { it.totalPrice }
+    val returnTotal = returnOrderItems.sumOf { it.totalPrice }
     val discountPercent = discountPercentage.toDoubleOrNull() ?: 0.0
     val discountVal = discountValue.toDoubleOrNull() ?: 0.0
     val calculatedDiscount = if (discountPercent > 0) (grossTotal * discountPercent / 100) else discountVal
-    val netTotal = grossTotal - calculatedDiscount
+    val netTotal = grossTotal - calculatedDiscount - returnTotal
     val noOfItems = orderItems.size
     val noOfPcs = orderItems.sumOf { it.qty }.toInt()
 
@@ -467,6 +478,8 @@ fun OrderFormScreenFull(
                         doNotCheckStockQtyWhenMakeOrders = config.doNotCheckStockQtyWhenMakeOrders ?: ""
                         showMemoInOrderFormAndCreditBill = config.showMemoInOrderFormAndCreditBill ?: ""
                         showDeliveryDateInOrderForm = config.showDeliveryDateInOrderForm ?: ""
+                        enableReturnItemsWithOrders = config.enableReturnItemsWithOrders ?: ""
+                        showReturnsSeparatelyInBills = config.showReturnsSeparatelyInBills ?: ""
                         enablePromotions = config.enablePromotions ?: ""
                         editSellingPrice = config.editSellingPriceWhenBilling ?: ""
                         editSellingPriceUpward = config.editSellingPriceUpwardWhenBilling ?: ""
@@ -598,6 +611,16 @@ fun OrderFormScreenFull(
                             },
                             modifier = Modifier.weight(1f)
                         )
+
+                        // Return items (added via the Return button), shown separately
+                        if (enableReturnItemsWithOrders == "Y" && returnOrderItems.isNotEmpty()) {
+                            ReturnItemsList(
+                                items = returnOrderItems,
+                                onDelete = { index ->
+                                    returnOrderItems = returnOrderItems.toMutableList().apply { removeAt(index) }
+                                }
+                            )
+                        }
                     }
 
                     // Right side - Order Summary
@@ -613,6 +636,7 @@ fun OrderFormScreenFull(
                             discountPercentage = discountPercentage,
                             discountValue = discountValue,
                             netTotal = netTotal,
+                            returnTotal = returnTotal,
                             noOfItems = noOfItems,
                             noOfPcs = noOfPcs,
                             selectedCustomer = selectedCustomer,
@@ -691,7 +715,7 @@ fun OrderFormScreenFull(
                                                 isOrderAccepted = result.isAccepted
                                                 deliveryDateMillis = result.deliveryDate
                                                 // Fill in missing item names/codes from availableItems
-                                                orderItems = result.items.map { item ->
+                                                val loadedItems = result.items.map { item ->
                                                     if (item.itemName.isEmpty() || item.itemCode.isEmpty()) {
                                                         val availableItem = availableItems.find { it.id == item.itemId }
                                                         item.copy(
@@ -702,6 +726,8 @@ fun OrderFormScreenFull(
                                                         item
                                                     }
                                                 }
+                                                orderItems = loadedItems.filter { !it.isReturnItem }
+                                                returnOrderItems = loadedItems.filter { it.isReturnItem }
                                                 discountPercentage = result.discountPercentage.toString()
                                                 discountValue = result.discountValue.toString()
                                                 // Set customer
@@ -779,7 +805,7 @@ fun OrderFormScreenFull(
                                                 context = context,
                                                 token = token!!,
                                                 orderNo = orderNo,
-                                                orderItems = orderItems,
+                                                orderItems = orderItems + returnOrderItems,
                                                 customerId = customerId,
                                                 customerName = customerName,
                                                 salesRefId = selectedSalesRep?.id ?: 0,
@@ -851,6 +877,7 @@ fun OrderFormScreenFull(
                                             showSuccessDialog = true
                                             // Reset form
                                             orderItems = emptyList()
+                                            returnOrderItems = emptyList()
                                             promoState.reset(); promoOffers = emptyList(); showPromoDialog = false
                                             selectedCustomer = null
                                             selectedSalesRep = null
@@ -947,7 +974,7 @@ fun OrderFormScreenFull(
                                                     token = token!!,
                                                     orderId = orderId!!,
                                                     orderNo = orderNo,
-                                                    orderItems = orderItems,
+                                                    orderItems = orderItems + returnOrderItems,
                                                     customerId = selectedCustomer?.id ?: 0,
                                                     customerName = selectedCustomer?.name ?: customerSearchQuery,
                                                     salesRefId = selectedSalesRep?.id ?: 0,
@@ -1004,7 +1031,7 @@ fun OrderFormScreenFull(
                                                     token = token!!,
                                                     orderId = orderId!!,
                                                     orderNo = orderNo,
-                                                    orderItems = orderItems,
+                                                    orderItems = orderItems + returnOrderItems,
                                                     customerId = selectedCustomer?.id ?: 0,
                                                     salesRefId = selectedSalesRep?.id ?: 0,
                                                     discountPercentage = discountPercent,
@@ -1039,6 +1066,7 @@ fun OrderFormScreenFull(
                                                 orderId = null
                                                 isOrderAccepted = false
                                                 orderItems = emptyList()
+                                            returnOrderItems = emptyList()
                                                 promoState.reset(); promoOffers = emptyList(); showPromoDialog = false
                                                 selectedCustomer = null
                                                 selectedSalesRep = null
@@ -1124,6 +1152,18 @@ fun OrderFormScreenFull(
                         )
                     }
 
+                    // Return items (added via the Return button), shown separately
+                    if (enableReturnItemsWithOrders == "Y" && returnOrderItems.isNotEmpty()) {
+                        item {
+                            ReturnItemsList(
+                                items = returnOrderItems,
+                                onDelete = { index ->
+                                    returnOrderItems = returnOrderItems.toMutableList().apply { removeAt(index) }
+                                }
+                            )
+                        }
+                    }
+
                     // Order Summary
                     item {
                         OrderSummaryCard(
@@ -1132,6 +1172,7 @@ fun OrderFormScreenFull(
                             discountPercentage = discountPercentage,
                             discountValue = discountValue,
                             netTotal = netTotal,
+                            returnTotal = returnTotal,
                             noOfItems = noOfItems,
                             noOfPcs = noOfPcs,
                             onOrderNoChange = { orderNo = it },
@@ -1175,7 +1216,7 @@ fun OrderFormScreenFull(
                                             selectedSalesRep = salesRef
                                             salesRepSearchQuery = salesRef?.name ?: ""
                                             // Set items - fill in missing names/codes from availableItems
-                                            orderItems = result.items.map { item ->
+                                            val loadedItems = result.items.map { item ->
                                                 if (item.itemName.isEmpty() || item.itemCode.isEmpty()) {
                                                     val availableItem = availableItems.find { it.id == item.itemId }
                                                     item.copy(
@@ -1186,6 +1227,8 @@ fun OrderFormScreenFull(
                                                     item
                                                 }
                                             }
+                                            orderItems = loadedItems.filter { !it.isReturnItem }
+                                            returnOrderItems = loadedItems.filter { it.isReturnItem }
                                         } else {
                                             errorMessage = "Order not found"
                                             showErrorDialog = true
@@ -1298,7 +1341,7 @@ fun OrderFormScreenFull(
                                                         context = context,
                                                         token = token!!,
                                                         orderNo = orderNo,
-                                                        orderItems = orderItems,
+                                                        orderItems = orderItems + returnOrderItems,
                                                         customerId = customerId,
                                                         customerName = customerName,
                                                         salesRefId = selectedSalesRep?.id ?: 0,
@@ -1369,6 +1412,7 @@ fun OrderFormScreenFull(
                                                     successMessage = result
                                                     showSuccessDialog = true
                                                     orderItems = emptyList()
+                                            returnOrderItems = emptyList()
                                                     promoState.reset(); promoOffers = emptyList(); showPromoDialog = false
                                                     selectedCustomer = null
                                                     selectedSalesRep = null
@@ -1464,7 +1508,7 @@ fun OrderFormScreenFull(
                                                         token = token!!,
                                                         orderId = orderId!!,
                                                         orderNo = orderNo,
-                                                        orderItems = orderItems,
+                                                        orderItems = orderItems + returnOrderItems,
                                                         customerId = selectedCustomer?.id ?: 0,
                                                         customerName = selectedCustomer?.name ?: customerSearchQuery,
                                                         salesRefId = selectedSalesRep?.id ?: 0,
@@ -1521,7 +1565,7 @@ fun OrderFormScreenFull(
                                                     token = token!!,
                                                     orderId = orderId!!,
                                                     orderNo = orderNo,
-                                                    orderItems = orderItems,
+                                                    orderItems = orderItems + returnOrderItems,
                                                     customerId = selectedCustomer?.id ?: 0,
                                                     salesRefId = selectedSalesRep?.id ?: 0,
                                                     discountPercentage = discountPercent,
@@ -1556,6 +1600,7 @@ fun OrderFormScreenFull(
                                                 orderId = null
                                                 isOrderAccepted = false
                                                 orderItems = emptyList()
+                                            returnOrderItems = emptyList()
                                                 promoState.reset(); promoOffers = emptyList(); showPromoDialog = false
                                                 selectedCustomer = null
                                                 selectedSalesRep = null
@@ -1815,9 +1860,65 @@ fun OrderFormScreenFull(
                             singleLine = true
                         )
                     }
+
+                    // Return To selector (only when return items are enabled) - used by the Return button
+                    if (enableReturnItemsWithOrders == "Y") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Return To:", fontSize = 12.sp, color = Color.Gray)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("DAMAGE" to "Damages", "STOCK" to "Add Stock").forEach { (value, label) ->
+                                val selected = dialogReturnType == value
+                                OutlinedButton(
+                                    onClick = { dialogReturnType = value },
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = if (selected) Color(0xFF1976D2) else Color.Transparent,
+                                        contentColor = if (selected) Color.White else Color.Gray
+                                    )
+                                ) { Text(label) }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
+              Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Return button (adds to the separate return items list)
+                if (enableReturnItemsWithOrders == "Y") {
+                    Button(
+                        onClick = {
+                            val qty = dialogQty.toDoubleOrNull() ?: 0.0
+                            val price = dialogPrice.toDoubleOrNull() ?: selectedBillItem!!.sellingPrice
+                            val discount = dialogDiscount.toDoubleOrNull() ?: 0.0
+                            val discountVal = (discount * price) / 100
+                            if (qty > 0 && selectedSupplier != null && selectedInvoice != null) {
+                                val returnItem = OrderItem(
+                                    itemId = selectedBillItem!!.id,
+                                    itemCode = selectedBillItem!!.code,
+                                    itemName = selectedBillItem!!.name,
+                                    supplierId = selectedSupplier!!.supplierId,
+                                    supplierName = selectedSupplier!!.supplierName,
+                                    invoiceId = selectedInvoice!!.invoiceId,
+                                    invoiceName = selectedInvoice!!.invoiceName,
+                                    qty = qty,
+                                    unitPrice = price,
+                                    discountPercentage = discount,
+                                    discountValue = discountVal,
+                                    totalQty = selectedInvoice!!.qty,
+                                    unitCost = selectedInvoice!!.unitCost,
+                                    isReturnItem = true,
+                                    returnType = dialogReturnType,
+                                    returnQty = qty
+                                )
+                                returnOrderItems = returnOrderItems + returnItem
+                            }
+                            showItemDetailDialog = false
+                            selectedBillItem = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                    ) {
+                        Text("Return")
+                    }
+                }
                 Button(
                     onClick = {
                         val qty = dialogQty.toDoubleOrNull() ?: 0.0
@@ -1880,6 +1981,7 @@ fun OrderFormScreenFull(
                 ) {
                     Text("Add")
                 }
+              }
             },
             dismissButton = {
                 TextButton(onClick = {
@@ -2059,6 +2161,45 @@ fun OrderFormScreenFull(
 }
 
 @Composable
+fun ReturnItemsList(
+    items: List<OrderItem>,
+    onDelete: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Text(
+            "Return Items",
+            color = Color(0xFFFFD700),
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(4.dp)
+        )
+        items.forEachIndexed { index, item ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF3A0D0D))
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(item.itemName, color = Color.White, fontSize = 13.sp)
+                    Text(
+                        "Qty ${String.format("%.0f", item.qty)} x ${String.format("%.2f", item.unitPrice)} = ${String.format("%.2f", item.totalPrice)}  (${if (item.returnType == "STOCK") "Add Stock" else "Damages"})",
+                        color = Color(0xFFFF6B6B),
+                        fontSize = 11.sp
+                    )
+                }
+                TextButton(onClick = { onDelete(index) }) {
+                    Text("Remove", color = Color(0xFFFF6B6B), fontSize = 12.sp)
+                }
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+        }
+    }
+}
+
+@Composable
 fun OrderItemsTable(
     items: List<OrderItem>,
     showFreeIssue: Boolean = false,
@@ -2194,6 +2335,7 @@ fun OrderSummaryPanel(
     discountPercentage: String,
     discountValue: String,
     netTotal: Double,
+    returnTotal: Double = 0.0,
     noOfItems: Int,
     noOfPcs: Int,
     selectedCustomer: CustomerOption?,
@@ -2329,6 +2471,12 @@ fun OrderSummaryPanel(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            // Return total (when there are return items)
+            if (returnTotal > 0) {
+                SummaryRow("Return", String.format("%.2f", returnTotal))
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
             // Net Total
             SummaryRow("Net Total", String.format("%.2f", netTotal), isHighlighted = true)
@@ -2648,6 +2796,7 @@ fun OrderSummaryCard(
     discountPercentage: String,
     discountValue: String,
     netTotal: Double,
+    returnTotal: Double = 0.0,
     noOfItems: Int,
     noOfPcs: Int,
     onOrderNoChange: (String) -> Unit,
@@ -2735,6 +2884,12 @@ fun OrderSummaryCard(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Return total (when there are return items)
+            if (returnTotal > 0) {
+                SummaryRow("Return", String.format("Rs. %.2f", returnTotal))
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             SummaryRow("Net Total", String.format("Rs. %.2f", netTotal), isHighlighted = true)
 
@@ -3211,6 +3366,9 @@ private suspend fun saveOrder(
                     addProperty("freeIssueQty", item.freeIssueQty.toInt())
                     addProperty("isPromoFreeItem", item.isPromoFreeItem)
                     addProperty("promotionId", item.promotionId)
+                    addProperty("isReturnItem", item.isReturnItem)
+                    addProperty("returnType", item.returnType)
+                    addProperty("returnQty", item.returnQty)
                 }
                 itemsArray.add(itemObj)
             }
@@ -3509,7 +3667,10 @@ private suspend fun loadOrderForm(token: String, orderNo: Int): LoadedOrderResul
                             totalQty = itemJson.get("totalQty")?.asDouble ?: 0.0,
                             freeIssueQty = itemJson.get("freeIssueQty")?.asDouble ?: 0.0,
                             isPromoFreeItem = try { itemJson.get("isPromoFreeItem")?.asBoolean ?: false } catch (e: Exception) { false },
-                            promotionId = try { itemJson.get("promotionId")?.asInt ?: 0 } catch (e: Exception) { 0 }
+                            promotionId = try { itemJson.get("promotionId")?.asInt ?: 0 } catch (e: Exception) { 0 },
+                            isReturnItem = try { itemJson.get("isReturnItem")?.asBoolean ?: false } catch (e: Exception) { false },
+                            returnType = itemJson.get("returnType")?.asString ?: "DAMAGE",
+                            returnQty = itemJson.get("returnQty")?.asDouble ?: 0.0
                         )
                         items.add(item)
                     }
@@ -3578,6 +3739,9 @@ private suspend fun updateOrder(
                     addProperty("freeIssueQty", item.freeIssueQty.toInt())
                     addProperty("isPromoFreeItem", item.isPromoFreeItem)
                     addProperty("promotionId", item.promotionId)
+                    addProperty("isReturnItem", item.isReturnItem)
+                    addProperty("returnType", item.returnType)
+                    addProperty("returnQty", item.returnQty)
                 }
                 itemsArray.add(itemObj)
             }
@@ -3677,6 +3841,9 @@ private suspend fun createBillByAcceptedOrder(
                     addProperty("freeIssueQty", item.freeIssueQty.toInt())
                     addProperty("isPromoFreeItem", item.isPromoFreeItem)
                     addProperty("promotionId", item.promotionId)
+                    addProperty("isReturnItem", item.isReturnItem)
+                    addProperty("returnType", item.returnType)
+                    addProperty("returnQty", item.returnQty)
                 }
                 itemsArray.add(itemObj)
             }

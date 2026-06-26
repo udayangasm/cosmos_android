@@ -624,8 +624,6 @@ fun QuickMenuOverlay(
         MenuOption("Cheques", Screen.Cheques.route, Color(0xFF8E44AD), "viewCheque", "showChequesInMobile"),
         MenuOption("Printer", Screen.Printer.route, Color(0xFF00CEC9), null, "showPrinterInMobile"),
         MenuOption("All Bills", Screen.AllBills.route, Color(0xFF42A5F5), "viewAllBills", "showAllBillsInMobile"),
-        MenuOption("Returns", Screen.CustomerReturns.route, Color(0xFFFF7043), "viewCreditBill", "showReturnsInMobile"),
-        MenuOption("Item Returns", Screen.ItemReturns.route, Color(0xFFFF8A65), "viewCreditBill", "showItemReturnsInMobile"),
         MenuOption("Settings", Screen.Settings.route, Color(0xFF607D8B), null, "showSettingsInMobile"),
     )
 

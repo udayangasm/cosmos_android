@@ -36,6 +36,8 @@ data class Config(
     val doNotCheckStockQtyWhenMakeOrders: String? = null,
     val showMemoInOrderFormAndCreditBill: String? = null,
     val showDeliveryDateInOrderForm: String? = null,
+    val enableReturnItemsWithOrders: String? = null,
+    val showReturnsSeparatelyInBills: String? = null,
     val customerTelephoneAndWhatsappMandatory: String? = null,
     val use58mmBillTemplateForAndroidApp: String? = null,
     val showCustomerNameInCashBill: String? = null,
