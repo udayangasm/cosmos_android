@@ -16,8 +16,8 @@ android {
         applicationId = "com.pos.cosmos"
         minSdk = 24
         targetSdk = 36
-        versionCode = 85
-        versionName = "85"
+        versionCode = 86
+        versionName = "86"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -250,7 +250,9 @@ fun KOTScreen(
             scope.launch {
                 withContext(Dispatchers.Default) {
                     categories = fetchCategories(token!!)
-                    availableMenuItems = fetchAllMenuItems(token!!)
+                    // "Hide Raw Materials in KOT" config, same behaviour as the web KOT page
+                    val hideRawMaterials = fetchHideRawMaterialsInKot(token!!)
+                    availableMenuItems = fetchAllMenuItems(token!!, hideRawMaterials)
                 }
                 loading = false
             }
@@ -1618,11 +1620,38 @@ private suspend fun fetchCategories(token: String): List<MenuCategory> {
     }
 }
 
-private suspend fun fetchAllMenuItems(token: String): List<KOTMenuItem> {
+// App config — dealer-service (8090) /admin/getConfigsByToken.
+// Returns true when "Hide Raw Materials in KOT" is enabled; false on any failure
+// so a config outage never empties the menu.
+private suspend fun fetchHideRawMaterialsInKot(token: String): Boolean {
+    return try {
+        val connection = URL("${ApiConfig.BASE_URL_8090}/admin/getConfigsByToken")
+            .openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.setRequestProperty("Authorization", "Bearer $token")
+        connection.setRequestProperty("Content-Type", "application/json")
+        connection.connectTimeout = 30000
+        connection.readTimeout = 30000
+
+        if (connection.responseCode == 200) {
+            val content = connection.inputStream.bufferedReader().use { it.readText() }
+            val config = Gson().fromJson(content, com.pos.cosmos.models.Config::class.java)
+            config?.hideRawMaterialsInKot == "Y"
+        } else {
+            false
+        }
+    } catch (e: Exception) {
+        Log.e("KOTScreen", "Error loading KOT config: ${e.message}")
+        false
+    }
+}
+
+private suspend fun fetchAllMenuItems(token: String, hideRawMaterials: Boolean = false): List<KOTMenuItem> {
     return try {
         // Map to store item images and descriptions from /item/getAllItems
         val allItemsMap = mutableMapOf<Int, String>()
         val allItemsDescriptionMap = mutableMapOf<Int, String>()
+        val rawMaterialItemIds = mutableSetOf<Int>()
         try {
             val itemsConnection = URL("${ApiConfig.BASE_URL_8080}/item/getAllItems")
                 .openConnection() as HttpURLConnection
@@ -1647,6 +1676,9 @@ private suspend fun fetchAllMenuItems(token: String): List<KOTMenuItem> {
                         }
                         if (!description.isNullOrBlank()) {
                             allItemsDescriptionMap[id] = description
+                        }
+                        if (item["isRawMaterial"] as? Boolean == true) {
+                            rawMaterialItemIds.add(id)
                         }
                     }
                 }
@@ -1680,7 +1712,11 @@ private suspend fun fetchAllMenuItems(token: String): List<KOTMenuItem> {
                     val imageUrl = allItemsMap[itemId] ?: ""
                     val description = allItemsDescriptionMap[itemId] ?: ""
 
-                    if (sellingPrice <= 0.0 || itemName.isBlank()) {
+                    if (itemName.isBlank()) {
+                        return@mapNotNull null
+                    }
+
+                    if (hideRawMaterials && rawMaterialItemIds.contains(itemId)) {
                         return@mapNotNull null
                     }
 

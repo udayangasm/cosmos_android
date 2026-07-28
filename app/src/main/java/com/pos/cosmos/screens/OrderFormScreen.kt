@@ -496,7 +496,8 @@ fun OrderFormScreenFull(
                             paymentOptions = listOf(
                                 PaymentOption("Cash", "CASH"),
                                 PaymentOption("Cheque", "CHEQUE"),
-                                PaymentOption("Card", "CARD")
+                                PaymentOption("Card", "CARD"),
+                                PaymentOption("Credit", "CREDIT")
                             )
                             selectedPaymentOption = paymentOptions[0] // Default to Cash
                         }

@@ -52,6 +52,8 @@ data class Config(
     val showBarcode: String? = null,
     val setDefaultDiscountForPrice: String? = null,
     val showLineDiscountInSmallBills: String? = null,
+    // KOT settings
+    val hideRawMaterialsInKot: String? = null,
     // When "N", credit bill uses the per-purchase-invoice selling price; otherwise
     // (checked/"Y" or unset) it uses the item's last-updated (master) selling price,
     // matching the web credit-bill behaviour.
