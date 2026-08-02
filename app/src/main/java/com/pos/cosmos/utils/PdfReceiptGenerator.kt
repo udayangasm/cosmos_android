@@ -22,7 +22,9 @@ import java.io.ByteArrayOutputStream
 
 data class ReceiptItem(
     val name: String,
-    val quantity: Int,
+    // Double, not Int: weighed/loose items are sold in fractions (0.5 kg) and
+    // truncating here printed "x0" on the receipt. Render with formatQty().
+    val quantity: Double,
     val price: Double,
     val amount: Double,
     val discountValue: Double = 0.0
@@ -430,7 +432,7 @@ class PdfReceiptGenerator(private val context: Context, paperWidthMm: Float = 80
             }
 
             detailsTable.addCell(Cell().add(
-                Paragraph("x${item.quantity}")
+                Paragraph("x${formatQty(item.quantity)}")
                     .setFontSize(data.itemFontSize)
                     .setFixedLeading(data.itemFontSize)
                     .setTextAlignment(TextAlignment.RIGHT)
@@ -484,7 +486,7 @@ class PdfReceiptGenerator(private val context: Context, paperWidthMm: Float = 80
                         .setTextAlignment(TextAlignment.RIGHT).setMargin(0f).setPadding(0f)
                 ).setBorder(null).setPadding(0f).setMargin(0f))
                 retTable.addCell(Cell().add(
-                    Paragraph("x${item.quantity}")
+                    Paragraph("x${formatQty(item.quantity)}")
                         .setFontSize(data.itemFontSize).setFixedLeading(data.itemFontSize)
                         .setTextAlignment(TextAlignment.RIGHT).setMargin(0f).setPadding(0f)
                 ).setBorder(null).setPadding(0f).setMargin(0f))
@@ -927,7 +929,7 @@ class PdfReceiptGenerator(private val context: Context, paperWidthMm: Float = 80
                 ).setBorder(null).setPadding(0f).setMargin(0f))
             }
             detailsTable.addCell(Cell().add(
-                Paragraph("x${item.quantity}").setFontSize(data.itemFontSize).setFixedLeading(data.itemFontSize).setTextAlignment(TextAlignment.RIGHT).setMargin(0f).setPadding(0f)
+                Paragraph("x${formatQty(item.quantity)}").setFontSize(data.itemFontSize).setFixedLeading(data.itemFontSize).setTextAlignment(TextAlignment.RIGHT).setMargin(0f).setPadding(0f)
             ).setBorder(null).setPadding(0f).setMargin(0f))
             detailsTable.addCell(Cell().add(
                 Paragraph(String.format("%.2f", item.amount)).setFontSize(data.itemFontSize).setFixedLeading(data.itemFontSize).setTextAlignment(TextAlignment.RIGHT).setMargin(0f).setPadding(0f)
@@ -957,7 +959,7 @@ class PdfReceiptGenerator(private val context: Context, paperWidthMm: Float = 80
                     Paragraph(String.format("%.2f", item.price)).setFontSize(data.itemFontSize).setFixedLeading(data.itemFontSize).setTextAlignment(TextAlignment.RIGHT).setMargin(0f).setPadding(0f)
                 ).setBorder(null).setPadding(0f).setMargin(0f))
                 retTable.addCell(Cell().add(
-                    Paragraph("x${item.quantity}").setFontSize(data.itemFontSize).setFixedLeading(data.itemFontSize).setTextAlignment(TextAlignment.RIGHT).setMargin(0f).setPadding(0f)
+                    Paragraph("x${formatQty(item.quantity)}").setFontSize(data.itemFontSize).setFixedLeading(data.itemFontSize).setTextAlignment(TextAlignment.RIGHT).setMargin(0f).setPadding(0f)
                 ).setBorder(null).setPadding(0f).setMargin(0f))
                 retTable.addCell(Cell().add(
                     Paragraph("-${String.format("%.2f", item.amount)}").setFontSize(data.itemFontSize).setFixedLeading(data.itemFontSize).setTextAlignment(TextAlignment.RIGHT).setMargin(0f).setPadding(0f)

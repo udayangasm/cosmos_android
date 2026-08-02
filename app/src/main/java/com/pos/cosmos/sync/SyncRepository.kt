@@ -223,31 +223,34 @@ class SyncRepository private constructor(context: Context) {
             }
             SyncTables.ITEMS -> {
                 val watermark = settings.getTableLastSync(table).takeIf { it > 0 }?.let { formatIso(it) }
-                val pages = fetchPaginated(table, "${ApiConfig.BASE_URL_8080}/item/sync-items", token, watermark)
-                    ?: return markSkipped(table, "endpoint unreachable")
-                val rows = pages.mapNotNull { o ->
-                    val id = o.optLong("id") ?: return@mapNotNull null
-                    ItemEntity(
-                        id = id,
-                        itemCode = o.optStr("itemCode"),
-                        barcode = o.optStr("barcode"),
-                        name = o.optStr("name"),
-                        categoryId = o.optLong("categoryId"),
-                        unit = o.optStr("unit"),
-                        unitCost = o.optDouble("unitCost") ?: 0.0,
-                        sellingPrice = o.optDouble("sellingPrice") ?: 0.0,
-                        sellingPrice2 = o.optDouble("sellingPrice2") ?: 0.0,
-                        sellingPrice3 = o.optDouble("sellingPrice3") ?: 0.0,
-                        stockQty = o.optDouble("stockQty") ?: 0.0,
-                        imageUrl = o.optStr("image") ?: o.optStr("imageUrl"),
-                        companyCode = o.optInt("companyCode") ?: 0,
-                        active = o.optStr("active") ?: "Y",
-                        updatedAt = now
-                    )
-                }
-                if (watermark == null) db.itemDao().clear()
-                db.itemDao().upsertAll(rows)
-                markDone(table, rows.size, now)
+                val inserted = fetchPaginatedStreaming(
+                    table, "${ApiConfig.BASE_URL_8080}/item/sync-items", token, watermark
+                ) { page, pageIndex ->
+                    val rows = page.mapNotNull { o ->
+                        val id = o.optLong("id") ?: return@mapNotNull null
+                        ItemEntity(
+                            id = id,
+                            itemCode = o.optStr("itemCode"),
+                            barcode = o.optStr("barcode"),
+                            name = o.optStr("name"),
+                            categoryId = o.optLong("categoryId"),
+                            unit = o.optStr("unit"),
+                            unitCost = o.optDouble("unitCost") ?: 0.0,
+                            sellingPrice = o.optDouble("sellingPrice") ?: 0.0,
+                            sellingPrice2 = o.optDouble("sellingPrice2") ?: 0.0,
+                            sellingPrice3 = o.optDouble("sellingPrice3") ?: 0.0,
+                            stockQty = o.optDouble("stockQty") ?: 0.0,
+                            imageUrl = o.optStr("image") ?: o.optStr("imageUrl"),
+                            companyCode = o.optInt("companyCode") ?: 0,
+                            active = o.optStr("active") ?: "Y",
+                            updatedAt = now
+                        )
+                    }
+                    if (pageIndex == 0 && watermark == null) db.itemDao().clear()
+                    db.itemDao().upsertAll(rows)
+                    rows.size
+                } ?: return markSkipped(table, "endpoint unreachable")
+                markDone(table, inserted, now)
             }
             SyncTables.COMPANIES -> {
                 val username = SessionManager.getInstance(appContext).getSavedUsername().orEmpty()
@@ -271,124 +274,136 @@ class SyncRepository private constructor(context: Context) {
             }
             SyncTables.INVOICES -> {
                 val watermark = settings.getTableLastSync(table).takeIf { it > 0 }?.let { formatIso(it) }
-                val pages = fetchPaginated(table, "${ApiConfig.BASE_URL_8080}/invoice/sync-invoices", token, watermark)
-                    ?: return markSkipped(table, "endpoint unreachable")
-                val rows = pages.mapNotNull { o ->
-                    val id = o.optLong("id") ?: return@mapNotNull null
-                    InvoiceEntity(
-                        id = id,
-                        invoiceNo = o.optStr("invoiceNo"),
-                        invoiceDate = o.optStr("invoiceDate"),
-                        supplierId = o.optLong("supplierId") ?: 0L,
-                        total = o.optDouble("total") ?: 0.0,
-                        paid = o.optDouble("paid") ?: 0.0,
-                        companyCode = o.optInt("companyCode") ?: 0,
-                        isSynced = true,
-                        active = o.optStr("active") ?: "Y",
-                        updatedAt = now
-                    )
-                }
-                if (watermark == null) db.invoiceDao().clear()
-                db.invoiceDao().upsertAll(rows)
-                markDone(table, rows.size, now)
+                val inserted = fetchPaginatedStreaming(
+                    table, "${ApiConfig.BASE_URL_8080}/invoice/sync-invoices", token, watermark
+                ) { page, pageIndex ->
+                    val rows = page.mapNotNull { o ->
+                        val id = o.optLong("id") ?: return@mapNotNull null
+                        InvoiceEntity(
+                            id = id,
+                            invoiceNo = o.optStr("invoiceNo"),
+                            invoiceDate = o.optStr("invoiceDate"),
+                            supplierId = o.optLong("supplierId") ?: 0L,
+                            total = o.optDouble("total") ?: 0.0,
+                            paid = o.optDouble("paid") ?: 0.0,
+                            companyCode = o.optInt("companyCode") ?: 0,
+                            isSynced = true,
+                            active = o.optStr("active") ?: "Y",
+                            updatedAt = now
+                        )
+                    }
+                    if (pageIndex == 0 && watermark == null) db.invoiceDao().clear()
+                    db.invoiceDao().upsertAll(rows)
+                    rows.size
+                } ?: return markSkipped(table, "endpoint unreachable")
+                markDone(table, inserted, now)
             }
             SyncTables.STOCK_ITEMS -> {
                 val watermark = settings.getTableLastSync(table).takeIf { it > 0 }?.let { formatIso(it) }
-                val pages = fetchPaginated(table, "${ApiConfig.BASE_URL_8080}/stock/sync-stock-items", token, watermark)
-                    ?: return markSkipped(table, "endpoint unreachable")
-                val rows = pages.mapNotNull { o ->
-                    val id = o.optLong("id") ?: return@mapNotNull null
-                    StockItemEntity(
-                        id = 0,
-                        serverId = id,
-                        itemId = o.optLong("itemId") ?: 0L,
-                        invoiceId = o.optLong("invoiceId"),
-                        qty = o.optDouble("qty") ?: 0.0,
-                        unitCost = o.optDouble("unitCost") ?: 0.0,
-                        expiryDate = o.optStr("expiryDate"),
-                        companyCode = o.optInt("companyCode") ?: 0,
-                        isSynced = true,
-                        updatedAt = now
-                    )
-                }
-                if (watermark == null) db.stockItemDao().clear()
-                db.stockItemDao().upsertAll(rows)
-                markDone(table, rows.size, now)
+                val inserted = fetchPaginatedStreaming(
+                    table, "${ApiConfig.BASE_URL_8080}/stock/sync-stock-items", token, watermark
+                ) { page, pageIndex ->
+                    val rows = page.mapNotNull { o ->
+                        val id = o.optLong("id") ?: return@mapNotNull null
+                        StockItemEntity(
+                            id = 0,
+                            serverId = id,
+                            itemId = o.optLong("itemId") ?: 0L,
+                            invoiceId = o.optLong("invoiceId"),
+                            qty = o.optDouble("qty") ?: 0.0,
+                            unitCost = o.optDouble("unitCost") ?: 0.0,
+                            expiryDate = o.optStr("expiryDate"),
+                            companyCode = o.optInt("companyCode") ?: 0,
+                            isSynced = true,
+                            updatedAt = now
+                        )
+                    }
+                    if (pageIndex == 0 && watermark == null) db.stockItemDao().clear()
+                    db.stockItemDao().upsertAll(rows)
+                    rows.size
+                } ?: return markSkipped(table, "endpoint unreachable")
+                markDone(table, inserted, now)
             }
             SyncTables.BILLS -> {
                 val watermark = settings.getTableLastSync(table).takeIf { it > 0 }?.let { formatIso(it) }
-                val pages = fetchPaginated(table, "${ApiConfig.BASE_URL_8080}/bill/sync-bills", token, watermark)
-                    ?: return markSkipped(table, "endpoint unreachable")
-                // Wipe only synced rows so unsynced (queued local) bills survive — full pulls only.
-                if (watermark == null) {
-                    db.billDao().clearSyncedLines()
-                    db.billDao().clearSynced()
-                }
-                var inserted = 0
-                for (o in pages) {
-                    val serverId = o.optLong("id") ?: continue
-                    val bill = BillEntity(
-                        id = 0,
-                        serverId = serverId,
-                        billNo = o.optLong("billNo") ?: 0L,
-                        billingDate = o.optStr("billingDate"),
-                        billType = o.optStr("billType") ?: "CASH",
-                        customerId = o.optLong("customerId") ?: 0L,
-                        cashCustomerName = o.optStr("customerName"),
-                        salesRefId = o.optLong("salesRefId") ?: 0L,
-                        total = o.optDouble("total") ?: 0.0,
-                        discount = o.optDouble("discount") ?: 0.0,
-                        discountValue = o.optDouble("discountValue") ?: 0.0,
-                        cash = o.optDouble("cash") ?: 0.0,
-                        cardPayment = o.optDouble("cardPayment") ?: 0.0,
-                        companyCode = o.optInt("companyCode") ?: 0,
-                        createdByUser = o.optStr("createdByUser"),
-                        deviceName = null,
-                        isSynced = true,
-                        active = o.optStr("active") ?: "Y"
-                    )
-                    val localId = db.billDao().insert(bill)
-                    val itemsArr = if (o.has("billItems") && o.get("billItems").isJsonArray) o.getAsJsonArray("billItems") else null
-                    val lines = itemsArr?.mapNotNull { el ->
-                        val li = el.asJsonObject
-                        BillLineEntity(
-                            billLocalId = localId,
-                            serverId = li.optLong("id"),
-                            itemId = li.optLong("itemId") ?: 0L,
-                            unitPrice = li.optDouble("unitPrice") ?: 0.0,
-                            qty = li.optDouble("qty") ?: 0.0,
-                            returnQty = li.optDouble("returnQty") ?: 0.0,
-                            discount = li.optDouble("discount") ?: 0.0,
-                            discountValue = li.optDouble("discountValue") ?: 0.0,
-                            freeIssueQty = li.optDouble("freeIssueQty") ?: 0.0
+                val inserted = fetchPaginatedStreaming(
+                    table, "${ApiConfig.BASE_URL_8080}/bill/sync-bills", token, watermark
+                ) { page, pageIndex ->
+                    // Wipe only synced rows so unsynced (queued local) bills survive — full pulls only.
+                    if (pageIndex == 0 && watermark == null) {
+                        db.billDao().clearSyncedLines()
+                        db.billDao().clearSynced()
+                    }
+                    var pageInserted = 0
+                    for (o in page) {
+                        val serverId = o.optLong("id") ?: continue
+                        val bill = BillEntity(
+                            id = 0,
+                            serverId = serverId,
+                            billNo = o.optLong("billNo") ?: 0L,
+                            billingDate = o.optStr("billingDate"),
+                            billType = o.optStr("billType") ?: "CASH",
+                            customerId = o.optLong("customerId") ?: 0L,
+                            cashCustomerName = o.optStr("customerName"),
+                            salesRefId = o.optLong("salesRefId") ?: 0L,
+                            total = o.optDouble("total") ?: 0.0,
+                            discount = o.optDouble("discount") ?: 0.0,
+                            discountValue = o.optDouble("discountValue") ?: 0.0,
+                            cash = o.optDouble("cash") ?: 0.0,
+                            cardPayment = o.optDouble("cardPayment") ?: 0.0,
+                            companyCode = o.optInt("companyCode") ?: 0,
+                            createdByUser = o.optStr("createdByUser"),
+                            deviceName = null,
+                            isSynced = true,
+                            active = o.optStr("active") ?: "Y"
                         )
-                    } ?: emptyList()
-                    if (lines.isNotEmpty()) db.billLineDao().insertAll(lines)
-                    inserted++
-                }
+                        val localId = db.billDao().insert(bill)
+                        val itemsArr = if (o.has("billItems") && o.get("billItems").isJsonArray) o.getAsJsonArray("billItems") else null
+                        val lines = itemsArr?.mapNotNull { el ->
+                            val li = el.asJsonObject
+                            BillLineEntity(
+                                billLocalId = localId,
+                                serverId = li.optLong("id"),
+                                itemId = li.optLong("itemId") ?: 0L,
+                                unitPrice = li.optDouble("unitPrice") ?: 0.0,
+                                qty = li.optDouble("qty") ?: 0.0,
+                                returnQty = li.optDouble("returnQty") ?: 0.0,
+                                discount = li.optDouble("discount") ?: 0.0,
+                                discountValue = li.optDouble("discountValue") ?: 0.0,
+                                freeIssueQty = li.optDouble("freeIssueQty") ?: 0.0
+                            )
+                        } ?: emptyList()
+                        if (lines.isNotEmpty()) db.billLineDao().insertAll(lines)
+                        pageInserted++
+                    }
+                    pageInserted
+                } ?: return markSkipped(table, "endpoint unreachable")
                 markDone(table, inserted, now)
             }
             SyncTables.CUSTOMER_PAYMENTS -> {
                 val watermark = settings.getTableLastSync(table).takeIf { it > 0 }?.let { formatIso(it) }
-                val pages = fetchPaginated(table, "${ApiConfig.BASE_URL_8080}/customer/payment/sync-payments", token, watermark)
-                    ?: return markSkipped(table, "endpoint unreachable")
-                val rows = pages.mapNotNull { o ->
-                    val id = o.optLong("id") ?: return@mapNotNull null
-                    CustomerPaymentEntity(
-                        id = 0,
-                        serverId = id,
-                        customerId = o.optLong("customerId") ?: 0L,
-                        paymentDate = o.optStr("paymentDate"),
-                        amount = o.optDouble("paidAmount") ?: o.optDouble("amount") ?: 0.0,
-                        method = o.optStr("type"),
-                        note = o.optStr("chequeNumber"),
-                        companyCode = o.optInt("companyCode") ?: 0,
-                        isSynced = true
-                    )
-                }
-                if (watermark == null) db.customerPaymentDao().clear()
-                db.customerPaymentDao().upsertAll(rows)
-                markDone(table, rows.size, now)
+                val inserted = fetchPaginatedStreaming(
+                    table, "${ApiConfig.BASE_URL_8080}/customer/payment/sync-payments", token, watermark
+                ) { page, pageIndex ->
+                    val rows = page.mapNotNull { o ->
+                        val id = o.optLong("id") ?: return@mapNotNull null
+                        CustomerPaymentEntity(
+                            id = 0,
+                            serverId = id,
+                            customerId = o.optLong("customerId") ?: 0L,
+                            paymentDate = o.optStr("paymentDate"),
+                            amount = o.optDouble("paidAmount") ?: o.optDouble("amount") ?: 0.0,
+                            method = o.optStr("type"),
+                            note = o.optStr("chequeNumber"),
+                            companyCode = o.optInt("companyCode") ?: 0,
+                            isSynced = true
+                        )
+                    }
+                    if (pageIndex == 0 && watermark == null) db.customerPaymentDao().clear()
+                    db.customerPaymentDao().upsertAll(rows)
+                    rows.size
+                } ?: return markSkipped(table, "endpoint unreachable")
+                markDone(table, inserted, now)
             }
             SyncTables.SUPPLIER_PAYMENTS -> {
                 val arr = fetchJsonArray("${ApiConfig.BASE_URL_8080}/supplier/payment/all", token)
@@ -414,24 +429,27 @@ class SyncRepository private constructor(context: Context) {
             }
             SyncTables.EXPENSES -> {
                 val watermark = settings.getTableLastSync(table).takeIf { it > 0 }?.let { formatIso(it) }
-                val pages = fetchPaginated(table, "${ApiConfig.BASE_URL_8080}/account/sync-expenses", token, watermark)
-                    ?: return markSkipped(table, "endpoint unreachable")
-                val rows = pages.mapNotNull { o ->
-                    val id = o.optLong("id") ?: return@mapNotNull null
-                    ExpenseEntity(
-                        id = 0,
-                        serverId = id,
-                        expenseDate = o.optStr("expenseDate") ?: o.optStr("date"),
-                        category = o.optStr("category") ?: o.optStr("expenseType"),
-                        amount = o.optDouble("amount") ?: 0.0,
-                        note = o.optStr("note") ?: o.optStr("description"),
-                        companyCode = o.optInt("companyCode") ?: 0,
-                        isSynced = true
-                    )
-                }
-                if (watermark == null) db.expenseDao().clear()
-                db.expenseDao().upsertAll(rows)
-                markDone(table, rows.size, now)
+                val inserted = fetchPaginatedStreaming(
+                    table, "${ApiConfig.BASE_URL_8080}/account/sync-expenses", token, watermark
+                ) { page, pageIndex ->
+                    val rows = page.mapNotNull { o ->
+                        val id = o.optLong("id") ?: return@mapNotNull null
+                        ExpenseEntity(
+                            id = 0,
+                            serverId = id,
+                            expenseDate = o.optStr("expenseDate") ?: o.optStr("date"),
+                            category = o.optStr("category") ?: o.optStr("expenseType"),
+                            amount = o.optDouble("amount") ?: 0.0,
+                            note = o.optStr("note") ?: o.optStr("description"),
+                            companyCode = o.optInt("companyCode") ?: 0,
+                            isSynced = true
+                        )
+                    }
+                    if (pageIndex == 0 && watermark == null) db.expenseDao().clear()
+                    db.expenseDao().upsertAll(rows)
+                    rows.size
+                } ?: return markSkipped(table, "endpoint unreachable")
+                markDone(table, inserted, now)
             }
             SyncTables.BILL_TEMPLATES -> {
                 val arr = fetchJsonArray("${ApiConfig.BASE_URL_8080}/bill/bill-templates", token)
@@ -623,45 +641,56 @@ class SyncRepository private constructor(context: Context) {
     }
 
     /**
-     * Walks a Spring `PagedResponse` endpoint (`?page=N&size=100`) and returns
-     * the flattened list of `content[]` JsonObjects across all pages. Emits
-     * incremental per-table progress (`processed` rises as each page lands).
-     * Returns null if the very first request fails.
+     * Walks a Spring `PagedResponse` endpoint (`?page=N&size=100`), handing each
+     * page to [onPage] as it lands and returning the total [onPage] reported.
+     * Emits incremental per-table progress. Returns null if the very first
+     * request fails, so callers can distinguish "unreachable" from "empty".
+     *
+     * Each page is dropped as soon as it is written, so peak memory is one page
+     * rather than the whole table. The previous version accumulated every page
+     * into one list and only then converted it to entities, holding the full
+     * Gson tree and the full entity list on the heap simultaneously — which is
+     * what put low-RAM devices over their limit on the bills and items tables.
+     *
+     * [onPage] receives the zero-based page index so callers can defer a
+     * destructive `clear()` until the server has actually answered.
      */
-    private suspend fun fetchPaginated(
+    private suspend fun fetchPaginatedStreaming(
         table: String,
         baseUrl: String,
         token: String,
         modifiedAfter: String? = null,
-        pageSize: Int = 100
-    ): List<JsonObject>? {
-        val all = mutableListOf<JsonObject>()
+        pageSize: Int = 100,
+        onPage: suspend (rows: List<JsonObject>, pageIndex: Int) -> Int
+    ): Int? {
         var page = 0
-        var totalElements = 0
+        var processed = 0
         while (true) {
             val sep = if (baseUrl.contains("?")) "&" else "?"
             val watermark = modifiedAfter?.let { "&modifiedAfter=$it" }.orEmpty()
             val url = "$baseUrl${sep}page=$page&size=$pageSize$watermark"
-            val resp = fetchJsonObject(url, token) ?: return if (page == 0) null else all
+            val resp = fetchJsonObject(url, token) ?: return if (page == 0) null else processed
             val content = if (resp.has("content") && resp.get("content").isJsonArray)
                 resp.getAsJsonArray("content") else null
-            if (content != null) {
-                for (el in content) if (el.isJsonObject) all.add(el.asJsonObject)
-            }
+
+            val rows = ArrayList<JsonObject>(content?.size() ?: 0)
+            if (content != null) for (el in content) if (el.isJsonObject) rows.add(el.asJsonObject)
+            processed += onPage(rows, page)
+
             if (page == 0) {
-                totalElements = resp.optInt("totalElements") ?: all.size
+                val totalElements = resp.optInt("totalElements") ?: processed
                 updateTable(table) {
-                    it.copy(status = "Syncing", total = totalElements, processed = all.size, serverCount = totalElements)
+                    it.copy(status = "Syncing", total = totalElements, processed = processed, serverCount = totalElements)
                 }
             } else {
-                updateTable(table) { it.copy(processed = all.size) }
+                updateTable(table) { it.copy(processed = processed) }
             }
             val isLast = resp.optBool("last") ?: true
             val empty = content == null || content.size() == 0
             if (isLast || empty) break
             page++
         }
-        return all
+        return processed
     }
 
     private suspend fun fetchJsonObject(url: String, token: String): JsonObject? {

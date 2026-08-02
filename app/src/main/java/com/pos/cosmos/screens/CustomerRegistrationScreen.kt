@@ -41,6 +41,7 @@ import androidx.core.content.FileProvider
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.pos.cosmos.utils.BitmapUtils
 import com.pos.cosmos.viewmodels.AppViewModel
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -109,7 +110,7 @@ fun CustomerRegistrationScreen(
             // Decode bitmap for preview
             try {
                 val inputStream = context.contentResolver.openInputStream(cameraPhotoUri!!)
-                selectedImageBitmap = BitmapFactory.decodeStream(inputStream)
+                selectedImageBitmap = BitmapUtils.decodeSampled(inputStream)
                 inputStream?.close()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -126,7 +127,7 @@ fun CustomerRegistrationScreen(
             customerImageUrl = null
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
-                selectedImageBitmap = BitmapFactory.decodeStream(inputStream)
+                selectedImageBitmap = BitmapUtils.decodeSampled(inputStream)
                 inputStream?.close()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -881,7 +882,7 @@ private fun uploadImageToServer(context: Context, imageUri: Uri, customerId: Lon
 
         // Read and compress the image before uploading
         val inputStream = context.contentResolver.openInputStream(imageUri)
-        val originalBitmap = BitmapFactory.decodeStream(inputStream)
+        val originalBitmap = BitmapUtils.decodeSampled(inputStream)
         inputStream?.close()
 
         if (originalBitmap != null) {

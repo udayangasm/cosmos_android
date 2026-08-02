@@ -655,7 +655,7 @@ fun CashBillScreen(
                                                     // Build receipt data from cached template
                                                     if (billTemplate != null) {
                                                         val pdfGenerator = PdfReceiptGenerator(context, paperWidthMm)
-                                                        val receiptItems = cartItems.map { ReceiptItem(it.name, it.quantity, it.sellingPrice, it.amount, it.discountValue) }
+                                                        val receiptItems = cartItems.map { ReceiptItem(it.name, it.quantity.toDouble(), it.sellingPrice, it.amount, it.discountValue) }
                                                         val showLineDiscount = config?.showLineDiscountInSmallBills == "Y"
                                                         val totalItemDiscount = cartItems.sumOf { it.quantity * it.discountValue }
                                                         val receiptData = buildReceiptFromTemplate(
@@ -693,7 +693,7 @@ fun CashBillScreen(
                                                     val enableShare = config?.enableShareAndroidApp == "Y"
                                                     if (billTemplate != null && (showPreview || enableShare)) {
                                                         val pdfGenerator = PdfReceiptGenerator(context, paperWidthMm)
-                                                        val receiptItems = cartItems.map { ReceiptItem(it.name, it.quantity, it.sellingPrice, it.amount, it.discountValue) }
+                                                        val receiptItems = cartItems.map { ReceiptItem(it.name, it.quantity.toDouble(), it.sellingPrice, it.amount, it.discountValue) }
                                                         val showLineDiscount = config?.showLineDiscountInSmallBills == "Y"
                                                         val totalItemDiscount = cartItems.sumOf { it.quantity * it.discountValue }
                                                         val receiptData = buildReceiptFromTemplate(

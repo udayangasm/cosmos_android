@@ -1168,7 +1168,7 @@ private fun printOrderReceipt(
         val receiptItems = order.orderItems.map { item ->
             ReceiptItem(
                 name = item.itemName,
-                quantity = item.qty.toInt(),
+                quantity = item.qty,
                 price = item.unitPrice - item.discountValue,
                 amount = item.totalPrice
             )
@@ -1284,7 +1284,7 @@ private fun printInvoice(
         val receiptItems = order.orderItems.map { item ->
             ReceiptItem(
                 name = item.itemName,
-                quantity = item.qty.toInt(),
+                quantity = item.qty,
                 price = item.unitPrice - item.discountValue,
                 amount = item.totalPrice
             )

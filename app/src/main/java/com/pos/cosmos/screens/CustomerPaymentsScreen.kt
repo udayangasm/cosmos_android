@@ -242,7 +242,7 @@ fun CustomerPaymentsScreen(
                     val name = itemNames[item.itemId.toLong()] ?: "Item #${item.itemId}"
                     ReceiptItem(
                         name = name,
-                        quantity = item.qty.toInt(),
+                        quantity = item.qty,
                         price = item.unitPrice,
                         amount = item.qty * (item.unitPrice - item.discountValue),
                         discountValue = item.discountValue
@@ -252,7 +252,7 @@ fun CustomerPaymentsScreen(
                     val name = itemNames[item.itemId.toLong()] ?: "Item #${item.itemId}"
                     ReceiptItem(
                         name = name,
-                        quantity = item.returnQty.toInt(),
+                        quantity = item.returnQty,
                         price = item.unitPrice,
                         amount = item.returnQty * (item.unitPrice - item.discountValue),
                         discountValue = item.discountValue

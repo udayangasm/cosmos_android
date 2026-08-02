@@ -221,7 +221,7 @@ private fun mergeCartItemsForReceipt(items: List<BillItem>): List<ReceiptItem> {
         } else {
             // Promotion free lines print with a (FREE) marker
             val displayName = if (item.isPromoFreeItem) "${item.name} (FREE)" else item.name
-            mergeMap[key] = ReceiptItem(displayName, item.quantity, item.sellingPrice, item.amount, item.discountValue)
+            mergeMap[key] = ReceiptItem(displayName, item.quantity.toDouble(), item.sellingPrice, item.amount, item.discountValue)
         }
     }
     return mergeMap.values.toList()
@@ -237,7 +237,7 @@ private fun cartTotalReturn(items: List<BillItem>): Double =
 /** Build the receipt's "returns" lines from cart items that have a return qty. */
 private fun cartReturnReceiptItems(items: List<BillItem>): List<ReceiptItem> =
     items.filter { it.returnQty > 0.0 }
-        .map { ReceiptItem(it.name, it.returnQty.toInt(), it.sellingPrice, it.returnAmount, it.discountValue) }
+        .map { ReceiptItem(it.name, it.returnQty, it.sellingPrice, it.returnAmount, it.discountValue) }
 
 private const val CREDIT_BILL_PREFS = "credit_bill_cache"
 private const val KEY_CART_ITEMS = "cart_items"

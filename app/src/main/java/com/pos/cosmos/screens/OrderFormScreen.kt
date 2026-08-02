@@ -66,6 +66,7 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
 import com.pos.cosmos.api.ApiConfig
+import com.pos.cosmos.utils.formatQty
 
 // Data classes for Order Form
 data class OrderItem(
@@ -1819,7 +1820,7 @@ fun OrderFormScreenFull(
                         value = dialogQty,
                         onValueChange = { dialogQty = it },
                         label = { Text("Quantity") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -1856,7 +1857,7 @@ fun OrderFormScreenFull(
                             value = dialogFreeIssue,
                             onValueChange = { dialogFreeIssue = it },
                             label = { Text("Free Qty") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
@@ -2007,7 +2008,7 @@ fun OrderFormScreenFull(
                         value = editingQty,
                         onValueChange = { editingQty = it },
                         label = { Text("Quantity") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -2052,7 +2053,7 @@ fun OrderFormScreenFull(
                             value = editingFreeIssue,
                             onValueChange = { editingFreeIssue = it },
                             label = { Text("Free Qty") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -2186,7 +2187,7 @@ fun ReturnItemsList(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(item.itemName, color = Color.White, fontSize = 13.sp)
                     Text(
-                        "Qty ${String.format("%.0f", item.qty)} x ${String.format("%.2f", item.unitPrice)} = ${String.format("%.2f", item.totalPrice)}  (${if (item.returnType == "STOCK") "Add Stock" else "Damages"})",
+                        "Qty ${formatQty(item.qty)} x ${String.format("%.2f", item.unitPrice)} = ${String.format("%.2f", item.totalPrice)}  (${if (item.returnType == "STOCK") "Add Stock" else "Damages"})",
                         color = Color(0xFFFF6B6B),
                         fontSize = 11.sp
                     )
@@ -2252,9 +2253,9 @@ fun OrderItemsTable(
                             fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
                         Text(String.format("%.2f", item.unitPrice), modifier = Modifier.weight(0.7f), color = Color.White, fontSize = 11.sp, textAlign = TextAlign.End)
-                        Text(item.qty.toInt().toString(), modifier = Modifier.weight(0.5f), color = Color.White, fontSize = 11.sp, textAlign = TextAlign.End)
+                        Text(formatQty(item.qty), modifier = Modifier.weight(0.5f), color = Color.White, fontSize = 11.sp, textAlign = TextAlign.End)
                         if (showFreeIssue) {
-                            Text(item.freeIssueQty.toInt().toString(), modifier = Modifier.weight(0.5f), color = Color(0xFFFF9800), fontSize = 11.sp, textAlign = TextAlign.End)
+                            Text(formatQty(item.freeIssueQty), modifier = Modifier.weight(0.5f), color = Color(0xFFFF9800), fontSize = 11.sp, textAlign = TextAlign.End)
                         }
                         Text(String.format("%.2f", item.totalPrice), modifier = Modifier.weight(0.7f), color = Color(0xFF4CAF50), fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
                         Row(modifier = Modifier.width(60.dp)) {
@@ -2302,12 +2303,12 @@ fun OrderItemCard(
                     color = if (item.isPromoFreeItem) Color(0xFF66BB6A) else Color.White,
                     fontWeight = FontWeight.Bold, fontSize = 14.sp
                 )
-                Text("${item.itemCode} | Qty: ${item.qty.toInt()} x ${String.format("%.2f", item.unitPrice)}", color = Color.Gray, fontSize = 12.sp)
+                Text("${item.itemCode} | Qty: ${formatQty(item.qty)} x ${String.format("%.2f", item.unitPrice)}", color = Color.Gray, fontSize = 12.sp)
                 if (item.discountPercentage > 0) {
                     Text("Discount: ${item.discountPercentage}%", color = Color(0xFFFF9800), fontSize = 11.sp)
                 }
                 if (item.freeIssueQty > 0) {
-                    Text("Free: ${item.freeIssueQty.toInt()}", color = Color(0xFFFF9800), fontSize = 11.sp)
+                    Text("Free: ${formatQty(item.freeIssueQty)}", color = Color(0xFFFF9800), fontSize = 11.sp)
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
@@ -3357,14 +3358,14 @@ private suspend fun saveOrder(
                     addProperty("invoiceId", item.invoiceId)
                     addProperty("supplierId", item.supplierId)
                     addProperty("itemId", item.itemId)
-                    addProperty("qty", item.qty.toInt().toString())
+                    addProperty("qty", formatQty(item.qty))
                     addProperty("unitPrice", item.unitPrice)
                     addProperty("discount", item.discountValue)
                     addProperty("discountValue", item.discountValue)
                     addProperty("discountPercentage", item.discountPercentage)
                     addProperty("totalPrice", item.totalPrice)
                     addProperty("totalQty", item.totalQty.toInt())
-                    addProperty("freeIssueQty", item.freeIssueQty.toInt())
+                    addProperty("freeIssueQty", item.freeIssueQty)
                     addProperty("isPromoFreeItem", item.isPromoFreeItem)
                     addProperty("promotionId", item.promotionId)
                     addProperty("isReturnItem", item.isReturnItem)
@@ -3534,7 +3535,7 @@ private fun buildOrderReceiptData(
         // Add main item (promotion free lines print as their own 0.00 rows)
         receiptItems.add(ReceiptItem(
             name = if (item.isPromoFreeItem) "${item.itemName} (FREE)" else item.itemName,
-            quantity = item.qty.toInt(),
+            quantity = item.qty,
             price = item.unitPrice,
             amount = item.totalPrice
         ))
@@ -3542,7 +3543,7 @@ private fun buildOrderReceiptData(
         if (item.freeIssueQty > 0) {
             receiptItems.add(ReceiptItem(
                 name = "${item.itemName} (Free)",
-                quantity = item.freeIssueQty.toInt(),
+                quantity = item.freeIssueQty,
                 price = 0.0,
                 amount = 0.0
             ))
@@ -3730,14 +3731,14 @@ private suspend fun updateOrder(
                     addProperty("invoiceId", item.invoiceId)
                     addProperty("supplierId", item.supplierId)
                     addProperty("itemId", item.itemId)
-                    addProperty("qty", item.qty.toInt().toString())
+                    addProperty("qty", formatQty(item.qty))
                     addProperty("unitPrice", item.unitPrice)
                     addProperty("discount", item.discountValue)
                     addProperty("discountValue", item.discountValue)
                     addProperty("discountPercentage", item.discountPercentage)
                     addProperty("totalPrice", item.totalPrice)
                     addProperty("totalQty", item.totalQty.toInt())
-                    addProperty("freeIssueQty", item.freeIssueQty.toInt())
+                    addProperty("freeIssueQty", item.freeIssueQty)
                     addProperty("isPromoFreeItem", item.isPromoFreeItem)
                     addProperty("promotionId", item.promotionId)
                     addProperty("isReturnItem", item.isReturnItem)
@@ -3832,14 +3833,14 @@ private suspend fun createBillByAcceptedOrder(
                     addProperty("invoiceId", item.invoiceId)
                     addProperty("supplierId", item.supplierId)
                     addProperty("itemId", item.itemId)
-                    addProperty("qty", item.qty.toInt().toString())
+                    addProperty("qty", formatQty(item.qty))
                     addProperty("unitPrice", item.unitPrice)
                     addProperty("discount", item.discountValue)
                     addProperty("discountValue", item.discountValue)
                     addProperty("discountPercentage", item.discountPercentage)
                     addProperty("totalPrice", item.totalPrice)
                     addProperty("totalQty", item.totalQty.toInt())
-                    addProperty("freeIssueQty", item.freeIssueQty.toInt())
+                    addProperty("freeIssueQty", item.freeIssueQty)
                     addProperty("isPromoFreeItem", item.isPromoFreeItem)
                     addProperty("promotionId", item.promotionId)
                     addProperty("isReturnItem", item.isReturnItem)
@@ -3983,7 +3984,7 @@ private fun printBillFromOrder(
             items = orderItems.map { item ->
                 ReceiptItem(
                     name = item.itemName,
-                    quantity = item.qty.toInt(),
+                    quantity = item.qty,
                     price = item.unitPrice,
                     amount = item.totalPrice
                 )
@@ -4100,7 +4101,7 @@ private fun printOrderTrueCopy(
             // Add main item
             receiptItems.add(ReceiptItem(
                 name = item.itemName,
-                quantity = item.qty.toInt(),
+                quantity = item.qty,
                 price = item.unitPrice,
                 amount = item.totalPrice
             ))
@@ -4108,7 +4109,7 @@ private fun printOrderTrueCopy(
             if (item.freeIssueQty > 0) {
                 receiptItems.add(ReceiptItem(
                     name = "${item.itemName} (Free)",
-                    quantity = item.freeIssueQty.toInt(),
+                    quantity = item.freeIssueQty,
                     price = 0.0,
                     amount = 0.0
                 ))

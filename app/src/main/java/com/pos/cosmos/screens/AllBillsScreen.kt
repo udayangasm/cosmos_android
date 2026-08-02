@@ -1219,7 +1219,7 @@ private fun printBillReceipt(
             val amount = effectiveQty * (item.unitPrice - item.discountValue)
             ReceiptItem(
                 name = itemName,
-                quantity = effectiveQty.toInt(),
+                quantity = effectiveQty,
                 price = item.unitPrice,
                 amount = amount
             )

@@ -48,6 +48,7 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
 import com.pos.cosmos.api.ApiConfig
+import com.pos.cosmos.utils.formatQty
 import java.io.File
 
 // ==================== Data Classes ====================
@@ -90,9 +91,6 @@ private data class ImageBillItem(
     val amount: Double
         get() = (effectiveQty - returnQty) * (unitPrice - discountValue)
 }
-
-private fun formatQty(q: Double): String =
-    if (q % 1.0 == 0.0) q.toInt().toString() else q.toString().trimEnd('0').trimEnd('.')
 
 private data class DistributionLine(
     val supplierId: Int,
@@ -679,10 +677,10 @@ fun ImageBillScreen(
                     if (printerService.isConnected() && billTemplate != null) {
                         val pdfGenerator = PdfReceiptGenerator(context, paperWidthMm)
                         val receiptItems = printItems.filter { it.quantity > 0.0 }.map {
-                            ReceiptItem(it.name, it.quantity.toInt(), it.unitPrice, it.quantity * it.unitPrice)
+                            ReceiptItem(it.name, it.quantity, it.unitPrice, it.quantity * it.unitPrice)
                         }
                         val receiptReturnItems = printItems.filter { it.returnQty > 0.0 }.map {
-                            ReceiptItem(it.name, it.returnQty.toInt(), it.unitPrice, it.returnQty * it.unitPrice)
+                            ReceiptItem(it.name, it.returnQty, it.unitPrice, it.returnQty * it.unitPrice)
                         }
                         val totalReturn = receiptReturnItems.sumOf { it.amount }
                         val receiptGrossTotal = printItems.sumOf { it.quantity * it.unitPrice }
@@ -734,10 +732,10 @@ fun ImageBillScreen(
                         if (billTemplate != null && (showPreview || enableShare)) {
                             val pdfGenerator = PdfReceiptGenerator(context, paperWidthMm)
                             val receiptItems = printItems.filter { it.quantity > 0.0 }.map {
-                                ReceiptItem(it.name, it.quantity.toInt(), it.unitPrice, it.quantity * it.unitPrice)
+                                ReceiptItem(it.name, it.quantity, it.unitPrice, it.quantity * it.unitPrice)
                             }
                             val receiptReturnItems = printItems.filter { it.returnQty > 0.0 }.map {
-                                ReceiptItem(it.name, it.returnQty.toInt(), it.unitPrice, it.returnQty * it.unitPrice)
+                                ReceiptItem(it.name, it.returnQty, it.unitPrice, it.returnQty * it.unitPrice)
                             }
                             val totalReturn = receiptReturnItems.sumOf { it.amount }
                             val receiptGrossTotal = printItems.sumOf { it.quantity * it.unitPrice }

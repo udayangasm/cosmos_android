@@ -1205,10 +1205,10 @@ private suspend fun printWithTemplate(
         Log.d("PrinterScreen", "Using ${paperWidthMm.toInt()}mm template - Company: $companyName")
 
         val sampleItems = listOf(
-            ReceiptItem("Panadol Extra 500mg", 2, 45.00, 90.00),
-            ReceiptItem("Vitamin C 1000mg", 1, 120.00, 120.00),
-            ReceiptItem("Cough Syrup 100ml", 1, 350.00, 350.00),
-            ReceiptItem("Band Aid Pack", 3, 85.00, 255.00)
+            ReceiptItem("Panadol Extra 500mg", 2.0, 45.00, 90.00),
+            ReceiptItem("Vitamin C 1000mg", 1.0, 120.00, 120.00),
+            ReceiptItem("Cough Syrup 100ml", 1.0, 350.00, 350.00),
+            ReceiptItem("Band Aid Pack", 3.0, 85.00, 255.00)
         )
         val sampleGrossTotal = sampleItems.sumOf { it.amount }
         val sampleDiscount = 50.0
@@ -1309,9 +1309,9 @@ private suspend fun printWithTemplate(
  */
 private fun buildSampleReceiptData(): ReceiptData {
     val items = listOf(
-        ReceiptItem("Atlas 80 Pages", 2, 50.00, 100.00),
-        ReceiptItem("Pen Blue", 5, 15.00, 75.00),
-        ReceiptItem("Notebook A4", 1, 120.00, 120.00)
+        ReceiptItem("Atlas 80 Pages", 2.0, 50.00, 100.00),
+        ReceiptItem("Pen Blue", 5.0, 15.00, 75.00),
+        ReceiptItem("Notebook A4", 1.0, 120.00, 120.00)
     )
 
     return ReceiptData(
@@ -1379,7 +1379,7 @@ private fun buildReceiptDataFromBill(
         items = billItems.map { item ->
             ReceiptItem(
                 name = item.name,
-                quantity = item.quantity,
+                quantity = item.quantity.toDouble(),
                 price = item.sellingPrice,
                 amount = item.amount
             )

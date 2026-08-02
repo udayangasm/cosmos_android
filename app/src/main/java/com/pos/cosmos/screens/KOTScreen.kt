@@ -1476,6 +1476,10 @@ fun CategoryChip(
     }
 }
 
+// Preset table numbers offered in the Table Details dropdown (T1..T10).
+// Change the range here to offer more/fewer tables.
+private val KOT_TABLE_OPTIONS: List<String> = (1..10).map { "T$it" }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TableNumberDialog(
@@ -1488,6 +1492,7 @@ fun TableNumberDialog(
 ) {
     var tableNumber by remember { mutableStateOf(currentTableNumber) }
     var customerName by remember { mutableStateOf(currentCustomerName) }
+    var tableMenuExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(onDismissRequest = onDismiss) {
         Card(
@@ -1507,22 +1512,60 @@ fun TableNumberDialog(
                 )
                 Spacer(modifier = Modifier.height(20.dp))
 
-                OutlinedTextField(
-                    value = tableNumber,
-                    onValueChange = { tableNumber = it },
-                    label = { Text("Table Number", color = Color.Gray) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF1A237E),
-                        focusedLabelColor = Color(0xFF1A237E),
-                        unfocusedBorderColor = Color.Gray,
-                        unfocusedLabelColor = Color.Gray,
-                        focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.Black,
-                        cursorColor = Color(0xFF1A237E)
+                ExposedDropdownMenuBox(
+                    expanded = tableMenuExpanded,
+                    onExpandedChange = { tableMenuExpanded = !tableMenuExpanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = tableNumber,
+                        onValueChange = {
+                            tableNumber = it
+                            tableMenuExpanded = false
+                        },
+                        label = { Text("Table Number", color = Color.Gray) },
+                        placeholder = { Text("Select or type e.g. T1", color = Color.Gray) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryEditable),
+                        singleLine = true,
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = tableMenuExpanded)
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF1A237E),
+                            focusedLabelColor = Color(0xFF1A237E),
+                            unfocusedBorderColor = Color.Gray,
+                            unfocusedLabelColor = Color.Gray,
+                            focusedTextColor = Color.Black,
+                            unfocusedTextColor = Color.Black,
+                            cursorColor = Color(0xFF1A237E)
+                        )
                     )
-                )
+                    ExposedDropdownMenu(
+                        expanded = tableMenuExpanded,
+                        onDismissRequest = { tableMenuExpanded = false },
+                        modifier = Modifier.background(Color.White)
+                    ) {
+                        KOT_TABLE_OPTIONS.forEach { option ->
+                            val isSelected = option.equals(tableNumber, ignoreCase = true)
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        option,
+                                        color = if (isSelected) Color(0xFF1A237E) else Color(0xFF212121),
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        fontSize = 16.sp
+                                    )
+                                },
+                                onClick = {
+                                    tableNumber = option
+                                    tableMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 

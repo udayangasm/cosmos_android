@@ -80,6 +80,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.objects.ObjectDetection
 import com.google.mlkit.vision.objects.defaults.ObjectDetectorOptions
 import kotlin.math.abs
+import com.pos.cosmos.utils.BitmapUtils
 import com.pos.cosmos.viewmodels.AppViewModel
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -175,7 +176,7 @@ fun StockAdjustmentScreen(
             itemImageUrl = null
             try {
                 val inputStream = context.contentResolver.openInputStream(cameraPhotoUri!!)
-                selectedImageBitmap = BitmapFactory.decodeStream(inputStream)
+                selectedImageBitmap = BitmapUtils.decodeSampled(inputStream)
                 inputStream?.close()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -192,7 +193,7 @@ fun StockAdjustmentScreen(
             itemImageUrl = null
             try {
                 val inputStream = context.contentResolver.openInputStream(uri)
-                selectedImageBitmap = BitmapFactory.decodeStream(inputStream)
+                selectedImageBitmap = BitmapUtils.decodeSampled(inputStream)
                 inputStream?.close()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -1427,27 +1428,22 @@ private fun InlineTextScanner(
                                             val buffer = imageProxy.planes[0].buffer
                                             val bytes = ByteArray(buffer.remaining())
                                             buffer.get(bytes)
-                                            val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                            val bmp = BitmapUtils.decodeSampled(bytes)
                                             val rotation = imageProxy.imageInfo.rotationDegrees
-                                            val rotated = if (rotation != 0 && bmp != null) {
-                                                val matrix = android.graphics.Matrix()
-                                                matrix.postRotate(rotation.toFloat())
-                                                Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, matrix, true)
-                                            } else bmp
+                                            // rotateAndRecycle/cropCentreStripAndRecycle free each
+                                            // intermediate immediately — the old code kept the
+                                            // decoded, rotated and cropped copies alive at once,
+                                            // which is three full-size bitmaps on the heap.
+                                            val rotated = bmp?.let { BitmapUtils.rotateAndRecycle(it, rotation) }
 
                                             // Crop to exactly match the preview viewport (FILL_CENTER):
                                             // the preview shows a centered horizontal strip whose
                                             // height/width ratio equals the PreviewView's ratio.
-                                            val cropped = if (rotated != null) {
+                                            val cropped = rotated?.let {
                                                 val pvW = previewView.width.coerceAtLeast(1)
                                                 val pvH = previewView.height.coerceAtLeast(1)
-                                                val targetRatio = pvH.toFloat() / pvW.toFloat()
-                                                val cropHeight = (rotated.width * targetRatio)
-                                                    .toInt()
-                                                    .coerceIn(1, rotated.height)
-                                                val top = ((rotated.height - cropHeight) / 2).coerceAtLeast(0)
-                                                Bitmap.createBitmap(rotated, 0, top, rotated.width, cropHeight)
-                                            } else null
+                                                BitmapUtils.cropCentreStripAndRecycle(it, pvH.toFloat() / pvW.toFloat())
+                                            }
 
                                             if (cropped != null) {
                                                 val textRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -1963,7 +1959,7 @@ fun ItemCounterOverlay(
                             // Freeze current frame
                             val bytes = capturedImageRef.value
                             if (bytes != null) {
-                                frozenBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                                frozenBitmap = BitmapUtils.decodeSampled(bytes)
                             }
                             tapMarkers = emptyList()
                             count = 0
@@ -2408,7 +2404,7 @@ private fun uploadItemImageToServer(context: Context, imageUri: Uri, itemId: Int
         outputStream.writeBytes(lineEnd)
 
         val inputStream = context.contentResolver.openInputStream(imageUri)
-        val originalBitmap = BitmapFactory.decodeStream(inputStream)
+        val originalBitmap = BitmapUtils.decodeSampled(inputStream)
         inputStream?.close()
 
         if (originalBitmap != null) {
