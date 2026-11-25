@@ -3692,7 +3692,7 @@ private suspend fun saveBillWithPayment(
 private suspend fun fetchCreditBillItemsWithInvoices(context: Context, token: String): List<CreditItemOption> {
     if (com.pos.cosmos.utils.AppSettings.get(context).useLocalDatabase.value) {
         return try {
-            com.pos.cosmos.local.CosmosDatabase.get(context).itemDao().all().map {
+            com.pos.cosmos.local.NewOrderItemFilter.sellableItems(context).map {
                 CreditItemOption(
                     id = it.id.toInt(),
                     code = it.itemCode.orEmpty(),

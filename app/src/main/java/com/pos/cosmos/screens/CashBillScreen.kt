@@ -1026,7 +1026,7 @@ fun TotalRow(
 private suspend fun fetchAllItems(context: Context, token: String): List<ItemOption> {
     if (com.pos.cosmos.utils.AppSettings.get(context).useLocalDatabase.value) {
         return try {
-            val rows = com.pos.cosmos.local.CosmosDatabase.get(context).itemDao().all()
+            val rows = com.pos.cosmos.local.NewOrderItemFilter.sellableItems(context)
             rows.map {
                 ItemOption(
                     id = it.id.toInt(),

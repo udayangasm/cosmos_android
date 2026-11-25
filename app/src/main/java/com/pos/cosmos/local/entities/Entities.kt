@@ -1,5 +1,6 @@
 package com.pos.cosmos.local.entities
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -48,7 +49,10 @@ data class ItemEntity(
     val imageUrl: String? = null,
     val companyCode: Int = 0,
     val active: String? = "Y",
-    val updatedAt: Long = 0L
+    val updatedAt: Long = 0L,
+    // Hide For New Orders (All Items): kept for lookups but not offered when billing.
+    // Added in DB version 3 - see CosmosDatabase.MIGRATION_2_3.
+    @ColumnInfo(defaultValue = "0") val hideForNewOrders: Boolean = false
 )
 
 @Entity(tableName = "customers")

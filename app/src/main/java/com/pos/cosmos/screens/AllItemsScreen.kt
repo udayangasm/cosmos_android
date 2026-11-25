@@ -45,6 +45,8 @@ data class Item(
     val code: String,
     val name: String,
     val sellingPrice: Double,
+    // Hide For New Orders - item stays active but is left out of new bills / orders.
+    val hideForNewOrders: Boolean = false,
     // Full server payload for this item. /item/saveItem replaces the whole row,
     // so we post back everything we received and only patch the edited fields.
     val raw: JsonObject = JsonObject()
@@ -61,6 +63,8 @@ fun AllItemsScreen(
     var loading by remember { mutableStateOf(true) }
     var editingItem by remember { mutableStateOf<Item?>(null) }
     var savingItem by remember { mutableStateOf(false) }
+    // Config: Order Form Settings > Enable Hide Items for New Orders
+    var enableHideItemsForNewOrders by remember { mutableStateOf(false) }
 
     val token by appViewModel.token.collectAsState()
     val userPermission by appViewModel.userPermission.collectAsState()
@@ -83,6 +87,7 @@ fun AllItemsScreen(
         if (token != null) {
             loading = true
             allItems = withContext(Dispatchers.IO) { fetchItems(token!!) }
+            enableHideItemsForNewOrders = withContext(Dispatchers.IO) { fetchHideItemsForNewOrdersFlag(token!!) }
             loading = false
         }
     }
@@ -147,6 +152,7 @@ fun AllItemsScreen(
                     items(filteredItems, key = { it.id }) { item ->
                         ItemCard(
                             item = item,
+                            showHiddenBadge = enableHideItemsForNewOrders,
                             onEdit = {
                                 if (canUpdate) {
                                     editingItem = item
@@ -169,12 +175,13 @@ fun AllItemsScreen(
         EditItemDialog(
             item = item,
             saving = savingItem,
+            showHideForNewOrders = enableHideItemsForNewOrders,
             onDismiss = { editingItem = null },
-            onSave = { code, name, sellingPrice ->
+            onSave = { code, name, sellingPrice, hideForNewOrders ->
                 scope.launch {
                     savingItem = true
                     val result = withContext(Dispatchers.IO) {
-                        updateItem(token, item, code, name, sellingPrice)
+                        updateItem(token, item, code, name, sellingPrice, hideForNewOrders)
                     }
                     savingItem = false
                     if (result.success) {
@@ -184,10 +191,12 @@ fun AllItemsScreen(
                                     code = code,
                                     name = name,
                                     sellingPrice = sellingPrice,
+                                    hideForNewOrders = hideForNewOrders,
                                     raw = it.raw.deepCopy().apply {
                                         addProperty("code", code)
                                         addProperty("name", name)
                                         addProperty("sellingPrice", sellingPrice)
+                                        addProperty("hideForNewOrders", hideForNewOrders)
                                     }
                                 )
                             } else {
@@ -206,7 +215,7 @@ fun AllItemsScreen(
 }
 
 @Composable
-fun ItemCard(item: Item, onEdit: () -> Unit) {
+fun ItemCard(item: Item, onEdit: () -> Unit, showHiddenBadge: Boolean = false) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -228,6 +237,15 @@ fun ItemCard(item: Item, onEdit: () -> Unit) {
                     fontSize = 14.sp,
                     color = CardTextPrimary
                 )
+                if (showHiddenBadge && item.hideForNewOrders) {
+                    Text(
+                        "Hidden for new orders",
+                        fontSize = 11.sp,
+                        color = Color(0xFFE94560),
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -258,12 +276,14 @@ fun ItemCard(item: Item, onEdit: () -> Unit) {
 private fun EditItemDialog(
     item: Item,
     saving: Boolean,
+    showHideForNewOrders: Boolean,
     onDismiss: () -> Unit,
-    onSave: (code: String, name: String, sellingPrice: Double) -> Unit
+    onSave: (code: String, name: String, sellingPrice: Double, hideForNewOrders: Boolean) -> Unit
 ) {
     var code by remember(item.id) { mutableStateOf(item.code) }
     var name by remember(item.id) { mutableStateOf(item.name) }
     var price by remember(item.id) { mutableStateOf(String.format("%.2f", item.sellingPrice)) }
+    var hideForNewOrders by remember(item.id) { mutableStateOf(item.hideForNewOrders) }
     var error by remember(item.id) { mutableStateOf<String?>(null) }
     var confirming by remember(item.id) { mutableStateOf(false) }
 
@@ -275,7 +295,7 @@ private fun EditItemDialog(
             confirmButton = {
                 TextButton(onClick = {
                     confirming = false
-                    onSave(code.trim(), name.trim(), price.trim().toDouble())
+                    onSave(code.trim(), name.trim(), price.trim().toDouble(), hideForNewOrders)
                 }) { Text("Yes") }
             },
             dismissButton = {
@@ -316,6 +336,17 @@ private fun EditItemDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (showHideForNewOrders) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = hideForNewOrders,
+                            onCheckedChange = { hideForNewOrders = it },
+                            enabled = !saving
+                        )
+                        Text("Hide for New Orders")
+                    }
+                }
                 error?.let {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(it, color = Color(0xFFE94560), fontSize = 12.sp)
@@ -355,7 +386,8 @@ private fun updateItem(
     item: Item,
     code: String,
     name: String,
-    sellingPrice: Double
+    sellingPrice: Double,
+    hideForNewOrders: Boolean
 ): UpdateResult {
     if (token == null) return UpdateResult(false, "Not logged in")
 
@@ -367,6 +399,7 @@ private fun updateItem(
         payload.addProperty("code", code)
         payload.addProperty("name", name)
         payload.addProperty("sellingPrice", sellingPrice)
+        payload.addProperty("hideForNewOrders", hideForNewOrders)
         payload.add("userEvent", JsonObject().apply {
             addProperty("event", "Update Item $name")
             addProperty("latitude", "0")
@@ -423,6 +456,7 @@ private fun fetchItems(token: String): List<Item> {
                         code = obj.get("code")?.takeIf { !it.isJsonNull }?.asString ?: "",
                         name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString ?: "",
                         sellingPrice = obj.get("sellingPrice")?.takeIf { !it.isJsonNull }?.asDouble ?: 0.0,
+                        hideForNewOrders = obj.get("hideForNewOrders")?.takeIf { !it.isJsonNull }?.asBoolean ?: false,
                         raw = obj
                     )
                 } catch (e: Exception) {
@@ -435,5 +469,26 @@ private fun fetchItems(token: String): List<Item> {
     } catch (e: Exception) {
         e.printStackTrace()
         emptyList()
+    }
+}
+
+/** Order Form Settings > Enable Hide Items for New Orders (dealer-service /admin/getConfigsByToken). */
+private fun fetchHideItemsForNewOrdersFlag(token: String): Boolean {
+    return try {
+        val connection = URL("${ApiConfig.BASE_URL_8090}/admin/getConfigsByToken")
+            .openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.setRequestProperty("Authorization", "Bearer $token")
+        connection.setRequestProperty("Content-Type", "application/json")
+        connection.connectTimeout = 30000
+        connection.readTimeout = 30000
+        if (connection.responseCode == 200) {
+            val content = connection.inputStream.bufferedReader().use { it.readText() }
+            val obj = JsonParser.parseString(content).asJsonObject
+            obj.get("enableHideItemsForNewOrders")?.takeIf { !it.isJsonNull }?.asString == "Y"
+        } else false
+    } catch (e: Exception) {
+        e.printStackTrace()
+        false
     }
 }

@@ -243,7 +243,8 @@ class SyncRepository private constructor(context: Context) {
                             imageUrl = o.optStr("image") ?: o.optStr("imageUrl"),
                             companyCode = o.optInt("companyCode") ?: 0,
                             active = o.optStr("active") ?: "Y",
-                            updatedAt = now
+                            updatedAt = now,
+                            hideForNewOrders = o.optBool("hideForNewOrders") ?: false
                         )
                     }
                     if (pageIndex == 0 && watermark == null) db.itemDao().clear()

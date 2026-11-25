@@ -1794,7 +1794,7 @@ private suspend fun fetchImageBillCategories(context: Context, token: String): L
 private suspend fun fetchImageBillItems(context: Context, token: String): List<ImageBillItem> {
     if (com.pos.cosmos.utils.AppSettings.get(context).useLocalDatabase.value) {
         return try {
-            com.pos.cosmos.local.CosmosDatabase.get(context).itemDao().all()
+            com.pos.cosmos.local.NewOrderItemFilter.sellableItems(context)
                 .filter { (it.sellingPrice > 0.0) && !it.name.isNullOrBlank() }
                 .map {
                     ImageBillItem(

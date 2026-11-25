@@ -132,6 +132,7 @@ private val CONFIG_CATEGORIES: List<Pair<String, List<Pair<String, String>>>> = 
         "showMemoInOrderFormAndCreditBill" to "Show Memo in Order Form and Credit Bill",
         "enableReturnItemsWithOrders" to "Enable return items along with orders",
         "showReturnsSeparatelyInBills" to "Show returns separately in bills",
+        "enableHideItemsForNewOrders" to "Enable Hide Items for New Orders",
     ),
     "SMS & WhatsApp Settings" to listOf(
         "sendSmsWhenBilling" to "Send SMS when billing",

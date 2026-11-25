@@ -36,6 +36,8 @@ data class Config(
     val doNotCheckStockQtyWhenMakeOrders: String? = null,
     val showMemoInOrderFormAndCreditBill: String? = null,
     val showDeliveryDateInOrderForm: String? = null,
+    // "Y" = items flagged Hide For New Orders (All Items) are left out of new bills / orders.
+    val enableHideItemsForNewOrders: String? = null,
     val enableReturnItemsWithOrders: String? = null,
     val showReturnsSeparatelyInBills: String? = null,
     val customerTelephoneAndWhatsappMandatory: String? = null,
